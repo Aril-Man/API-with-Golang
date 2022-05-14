@@ -17,10 +17,11 @@ var db *gorm.DB
 var err error
 
 type Product struct {
-	ID    int             `json:"id"`
-	Code  string          `json:"code"`
-	Name  string          `json:"name"`
-	Price decimal.Decimal `json:"price" sql:"type:decimal(16,2)"`
+	ID        int             `json:"id"`
+	Code      string          `json:"code"`
+	Name      string          `json:"name"`
+	Price     decimal.Decimal `json:"price" sql:"type:decimal(16,2)"`
+	Deskripsi string          `json:"deskripsi"`
 }
 
 type Result struct {
@@ -92,21 +93,41 @@ func getProducts(w http.ResponseWriter, r *http.Request) {
 	product := []Product{}
 
 	db.Find(&product)
-	res := Result{
-		Code:    http.StatusOK,
-		Data:    product,
-		Message: "Product berhasil ditemukan"}
 
-	result, err := json.Marshal(res)
+	if len(product) <= 0 {
+		res := Result{
+			Code:    http.StatusNotFound,
+			Message: "Product Kosong"}
 
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		result, err := json.Marshal(res)
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		w.Write(result)
+	} else {
+
+		res := Result{
+			Code:    http.StatusOK,
+			Data:    product,
+			Message: "Product berhasil ditemukan"}
+
+		result, err := json.Marshal(res)
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		w.Write(result)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	w.Write(result)
 }
 
 func getProduct(w http.ResponseWriter, r *http.Request) {
@@ -116,21 +137,39 @@ func getProduct(w http.ResponseWriter, r *http.Request) {
 	var product Product
 	db.First(&product, id)
 
-	res := Result{
-		Code:    http.StatusOK,
-		Data:    product,
-		Message: "Product berhasil ditemukan"}
+	if product.ID == 0 {
+		res := Result{
+			Code:    http.StatusNotFound,
+			Message: "Product tidak ditemukan"}
 
-	result, err := json.Marshal(res)
+		result, err := json.Marshal(res)
 
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		w.Write(result)
+	} else {
+
+		res := Result{
+			Code:    http.StatusOK,
+			Data:    product,
+			Message: "Product berhasil ditemukan"}
+
+		result, err := json.Marshal(res)
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		w.Write(result)
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	w.Write(result)
 }
 
 func deleteProduct(w http.ResponseWriter, r *http.Request) {
