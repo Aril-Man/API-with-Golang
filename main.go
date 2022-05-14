@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/go-playground/validator"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
@@ -17,15 +18,16 @@ var db *gorm.DB
 var err error
 
 type Product struct {
-	ID        int             `json:"id"`
-	Code      string          `json:"code"`
-	Name      string          `json:"name"`
-	Price     decimal.Decimal `json:"price" sql:"type:decimal(16,2)"`
-	Deskripsi string          `json:"deskripsi"`
+	ID        int             `json:"id" gorm:"primary_key"`
+	Code      string          `json:"code" validate:"required"`
+	Name      string          `json:"name" validate:"required"`
+	Price     decimal.Decimal `json:"price" sql:"type:decimal(16,2)" validate:"required"`
+	Deskripsi string          `json:"deskripsi" validate:"required"`
 }
 
 type Result struct {
 	Code    int         `json:"code"`
+	Count   int         `json:"count"`
 	Data    interface{} `json:"data"`
 	Message string      `json:"message"`
 }
@@ -69,24 +71,39 @@ func createProduct(w http.ResponseWriter, r *http.Request) {
 	var product Product
 	json.Unmarshal(payload, &product)
 
-	db.Create(&product)
+	validate := validator.New()
 
-	res := Result{
-		Code:    http.StatusCreated,
-		Data:    product,
-		Message: "Product berhasil dibuat",
+	if err := validate.Struct(product); err != nil {
+		res := Result{
+			Code:    http.StatusBadRequest,
+			Message: "Bad Request",
+			Data:    err.Error(),
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(res.Data.(string)))
+	} else {
+
+		db.Create(&product)
+
+		res := Result{
+			Code:    http.StatusCreated,
+			Data:    product,
+			Message: "Product berhasil dibuat",
+		}
+
+		result, err := json.Marshal(res)
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		w.Write(result)
 	}
 
-	result, err := json.Marshal(res)
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	w.Write(result)
 }
 
 func getProducts(w http.ResponseWriter, r *http.Request) {
@@ -113,6 +130,7 @@ func getProducts(w http.ResponseWriter, r *http.Request) {
 
 		res := Result{
 			Code:    http.StatusOK,
+			Count:   len(product),
 			Data:    product,
 			Message: "Product berhasil ditemukan"}
 
